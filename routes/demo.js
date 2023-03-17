@@ -1,4 +1,5 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 
 const db = require('../data/database');
 
@@ -22,16 +23,46 @@ router.post('/signup', async function (req, res) {
   const enteredconfirmEmail = userData['confirm-email'];
   const enteredpassword = userData.password;
 
+  const hashedPassword = await bcrypt.hash(enteredpassword, 12);
+
   const user = {
     email: enteredemail,
-    password: enteredpassword
+    password: hashedPassword
   }
   await db.getDb().collection('users').insertOne(user);
-
+  
   res.redirect('/login');
 });
 
-router.post('/login', async function (req, res) {});
+router.post('/login', async function (req, res) {
+  const userData = req.body;
+  const enteredEmail = userData.email;
+  const enteredPassword = userData.password
+  
+  const existingUser = await db
+    .getDb()
+    .collection('users')
+    .findOne({ email: enteredEmail});
+
+  if(!existingUser){
+    console.log('Could not log in!');
+    return res.redirect('/login');
+  }
+  
+  const passwordsAreEqual = await bcrypt.compare(
+    enteredPassword, 
+    existingUser.password
+    );
+    
+    if(!passwordsAreEqual){
+    console.log('Could not log in - wrong passwords!');
+    return res.redirect('/login');
+  }
+
+  console.log('User is authenticated!');
+  res.redirect('/admin');
+    
+});
 
 router.get('/admin', function (req, res) {
   res.render('admin');
